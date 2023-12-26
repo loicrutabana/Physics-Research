@@ -1,0 +1,1 @@
+1. Should I account for negative scale factors?
