@@ -4,6 +4,7 @@ from tkinter import filedialog
 import customtkinter as ctk
 import os
 
+
 class LogFile:
   def __init__(self, filename, pathname, first_time, first_open, scale_factor):
     self.filename = filename
@@ -25,10 +26,7 @@ def create_ui():
 
   max_files = 10
 
-  # Logic
-
-  def printf1():
-    print("file 1")
+  # LOGIC
 
   # utility to insure that user enters a value numeric
   def is_number(s):
@@ -41,11 +39,14 @@ def create_ui():
           return False
   
   def file_explorer():
-    path = filedialog.askopenfilename(initialdir = "/",title = "Select file",filetypes = (("jpeg files","*.jpg"),("all files","*.*")))
+    path = filedialog.askopenfilename(initialdir = "/" ,title = "Select file",filetypes = (("jpeg files","*.jpg"),("all files","*.*")))
     if (path != ""):
       logfiles.append(path)
       filename = os.path.basename(path)
       labels[len(logfiles)-1].configure(text=filename, text_color="#0066bf")
+
+  def read():
+    print("reading file")
 
   # GUI
   frame = ctk.CTkScrollableFrame(root, width=550, height=1000)
@@ -71,7 +72,7 @@ def create_ui():
   file1_name_lbl.grid(pady=10, column=3, row=0)
   labels.append(file1_name_lbl)
 
-  file1_read_btn = ctk.CTkButton(inner_frame, text="Read", command=printf1, width=70, height=50)
+  file1_read_btn = ctk.CTkButton(inner_frame, text="Read", command=read, width=70, height=50)
   file1_read_btn.grid(pady=10, padx=10, column=4, row=0)
 
   # Appends a new frame for a new file entry. Allows up to 10 files
@@ -86,7 +87,7 @@ def create_ui():
         new_frame.grid(pady=10, padx=10, column=0, row=file_count)
         # inner_frame.grid_propagate(False)
 
-        fil_btn = ctk.CTkButton(new_frame, text=f'File {file_count}', command=printf1, width=70, height=50)
+        fil_btn = ctk.CTkButton(new_frame, text=f'File {file_count}', command=file_explorer, width=70, height=50)
         fil_btn.grid(pady=10, padx=10, column=1, row=0)
 
 
@@ -97,7 +98,7 @@ def create_ui():
         file_name_lbl.grid(pady=10, column=3, row=0)
         labels.append(file_name_lbl)
 
-        file_read_btn = ctk.CTkButton(new_frame, text="Read", command=file_explorer, width=70, height=50)
+        file_read_btn = ctk.CTkButton(new_frame, text="Read", command=read, width=70, height=50)
         file_read_btn.grid(pady=10, padx=10, column=4, row=0)
 
         add_file_btn = ctk.CTkButton(frame, text="Add File", command=new_file_entry if file_count < max_files else file_overflow_error, width=70, height=50)
@@ -121,7 +122,7 @@ def create_ui():
 
   def remove_error_messages():
     for widget in frame.winfo_children():
-      if isinstance(widget, ctk.CTkLabel) and widget["text_color"] == "red":
+      if isinstance(widget, ctk.CTkLabel) and widget.cget("text_color") == "red":
         widget.destroy()
 
   add_file_btn = ctk.CTkButton(frame, text="Add File", command=new_file_entry, width=70, height=50)
