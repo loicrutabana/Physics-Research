@@ -2,3 +2,4 @@
 1. Should I account for negative scale factors?
 2. What is the output identifier?
 3. The code from Pr. Dejongh seems to anticipate decimal numbers. Should I do that?
+4. Are the log files necessary?

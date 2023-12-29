@@ -102,26 +102,43 @@ def create_ui():
   labels.append(file1_name_lbl)
 
   # Reads file (Only handles unsiged integers)
-  def read(filename):
+  def read(i):
     # Check if it's the first time the file is being read
     # TODO: Handle this case
 
     # Log message indicating the file is being read
     print("Reading file for the first time")
+    filename = logfiles[i-1]
+    scale_factor = find_scale_factor(i)
+    spectrum = []
 
-    # Initialize spectrum array
-    spectrum = arr.array('I', [])
-    # Open the file
-    # Initialize vairables file_channel_count , number_full_lines and remainder
+    inputfile = open(filename, 'r')
+    firstline = inputfile.readline()
+    line = inputfile.readline()
+    file_channel_count = int(line)
+    number_full_lines = file_channel_count // 10 # Integer division. It truncates to always get an integer
+    remainder = file_channel_count % 10
 
     # Loop over each file, updating the spectrum array accordingly
+    for i in range(number_full_lines):
+      line = inputfile.readline().strip()
+      spectrum.extend(line.split(" "))
+    
+    # Append the values on the last line, multplying them with the scale factors
+    line = inputfile.readline().strip()
+    spectrum.extend(int(x * scale_factor) for x in line.split(" "))
+    
+    # Printing for debugging purposes
+    for i in range(len(spectrum)):
+      print(f'{i+1}: {spectrum[i]}')
 
-    # Handle the remainder
+    inputfile.close()
 
-    # Print out the spectrum array
+  def write():
+    print("Writing file")
 
 
-  file1_read_btn = ctk.CTkButton(inner_frame, text="Read", command=read, width=70, height=50)
+  file1_read_btn = ctk.CTkButton(inner_frame, text="Read", command=lambda: read(1), width=70, height=50)
   file1_read_btn.grid(pady=10, padx=10, column=4, row=0)
 
   # Appends a new frame for a new file entry. Allows up to 10 files
@@ -207,4 +224,4 @@ def create_ui():
   root.protocol("WM_DELETE_WINDOW", on_close)
   root.mainloop()
 
-create_ui()
+create_ui() 
