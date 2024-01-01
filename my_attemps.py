@@ -1,6 +1,7 @@
 # Author Loïc Rutabana, developing code by Dr. Dejongh
 
 from tkinter import filedialog
+import tkinter as tk
 import customtkinter as ctk
 import os
 import array as arr
@@ -25,7 +26,7 @@ def create_ui():
   ctk.set_default_color_theme("dark-blue")
 
   root = ctk.CTk()
-  root.geometry("750x750")
+  root.geometry("1000x750")
   
   file_count = 1
   logfiles = []
@@ -41,21 +42,23 @@ def create_ui():
   # LOGIC
 
    # Returns true if the string contains the substring
-  def contains(str, sub):
-    return str.find(sub) != -1
+  # def contains(str, sub):
+  #   return str.find(sub) != -1
   
   # Utility function to find the scale factor of a given file entry number
-  def find_scale_factor(i):
+  def find_scale_factor(i) -> float:
     frame_name = f'!ctkframe{i}' if i != 1 else '!ctkframe'
     frame_in_question = frame.children.get(frame_name)
     placeholder_text = frame_in_question.children.get("!ctkentry").cget("placeholder_text")
     val = frame_in_question.children.get("!ctkentry").get()
-    print(f'placeholder_text: {placeholder_text}, val: {val}')
-    if val == "" or contains(val, "scale factor"):
-      return 1
+    if val == "" or "scale factor" in val:
+      return 1.0
     if val == "-":
-      return -1
-    return val
+      return -1.0
+    return float(val)
+  
+  def find_scale_factor_new(i) -> int:
+    return logfiles[i-1].scale_factor
   
   #  Utility function to set a scale factor of a given file entry number
   def set_scale_factor(i, val):
@@ -63,23 +66,27 @@ def create_ui():
     frame_in_question = frame.children.get(frame_name)
     frame_in_question.children.get("!ctkentry").delete(0, "end")
     frame_in_question.children.get("!ctkentry").insert(0, val)
+
+  def set_scale_factor_new(i, val):
+    logfiles[i-1].scale_factor = val
     
   # utility to insure that user enters a value numeric (decimcal)
-  def scale_factor_validator(s):
+  def scale_factor_validator(ref) -> bool:
+      sc = str(find_scale_factor(ref))
       try:
-        if (s=="" or contains(s, "scale factor") or s=='-'):
+        if (sc=="" or "scale factor" in sc or sc=='-'):
           return True
-        float(s)
+        float(sc)
         return True
       except ValueError:
           return False
   
-  def file_explorer():
+  def file_explorer() -> None:
     path = filedialog.askopenfilename(initialdir = "/Users/rutab/Desktop/Workspace/Physics-Research/", title = "Select file",filetypes = (("dat files","*.dat"),("all files","*.*")))
     if (path != ""):
-      logfiles.append(path)
       filename = os.path.basename(path)
       log_file = LogFile(filename, os.path.dirname(path), True, True)
+      logfiles.append(log_file)
       labels[len(logfiles)-1].configure(text=filename, text_color="#0066bf")
 
   inner_frame = ctk.CTkFrame(frame, width=500, height=70, fg_color="transparent")
@@ -89,12 +96,20 @@ def create_ui():
   path_entry = ctk.CTkEntry(frame, width=500, placeholder_text="Path to file/folder")
   path_entry.grid(pady=30, padx=10, column=0, row=0)
 
-  fil1_btn = ctk.CTkButton(inner_frame, text=f'File {file_count}', command=file_explorer, width=70, height=50)
+  fil1_btn = ctk.CTkButton(inner_frame, text=f'File {file_count}', command=lambda: file_explorer(), width=70, height=50)
   fil1_btn.grid(pady=10, padx=10, column=1, row=0)
 
+  # Reference to the scale factor entry
+  ref = None
+
   # Create a Tcl wrapper for the validation command. It makes sure input is numeric
-  vcmd = (root.register(scale_factor_validator), '%P')
-  sc1_entry = ctk.CTkEntry(inner_frame, width=100, height=50, validate="key", validatecommand=vcmd, placeholder_text="scale factor 1")
+  vcmd = (root.register(scale_factor_validator), '%P', ref)
+
+  # The scale factor entry. It runs the validation command on each key press with the paramaters
+  # specified in the vcmd tuple. P is the value of the entry, C is the reference to the entry
+  sc1_entry = ctk.CTkEntry(inner_frame, width=100, height=50, validate="key",
+                         validatecommand=lambda: scale_factor_validator(1), 
+                         placeholder_text="scale factor 1")
   sc1_entry.grid(pady=10, padx=10, column=2, row=0)
 
   file1_name_lbl = ctk.CTkLabel(inner_frame, text=f'File {file_count} Name')
@@ -102,13 +117,19 @@ def create_ui():
   labels.append(file1_name_lbl)
 
   # Reads file (Only handles unsiged integers)
-  def read(i):
+  def read(i) -> None:
     # Check if it's the first time the file is being read
     # TODO: Handle this case
 
     # Log message indicating the file is being read
     print("Reading file for the first time")
-    filename = logfiles[i-1]
+
+    if (len(logfiles) < i):
+      #TODO handle this case
+      file_not_found_error()
+      return
+
+    filename = logfiles[i-1].pathname + "/" + logfiles[i-1].filename
     scale_factor = find_scale_factor(i)
     spectrum = []
 
@@ -126,20 +147,88 @@ def create_ui():
     
     # Append the values on the last line, multplying them with the scale factors
     line = inputfile.readline().strip()
-    spectrum.extend(int(x * scale_factor) for x in line.split(" "))
+    spectrum.extend(float(x) * scale_factor for x in line.split(" "))
     
     # Printing for debugging purposes
     for i in range(len(spectrum)):
       print(f'{i+1}: {spectrum[i]}')
-
+      new_filename = "Loïc's Log"
+      check_file = os.path.isfile(new_filename)
+      if (check_file):
+        overwrite_popup()
+      
     inputfile.close()
 
-  def write():
-    print("Writing file")
+  def overwrite_popup() -> bool:
+    # Create a pop up window
+    print("Creating pop up window")
+    overwrite_root = ctk.CTk()
+    overwrite_root.geometry("350x350")
+
+    popup = ctk.CTkFrame(overwrite_root, width=300, height=300, fg_color="transparent")
+    popup.pack(pady=10, padx=10)
+
+    text = ctk.CTkLabel(popup, text="Are you sure you want to overwrite the file?")
+    yes = ctk.CTkButton(popup, text="Yes", command=lambda: chose_yes())
+    no = ctk.CTkButton(popup, text="No", command=lambda: chose_no())
+
+    text.grid(pady=10, padx=10, column=0, row=0)
+    yes.grid(pady=10, padx=10, column=0, row=1)
+    no.grid(pady=10, padx=10, column=1, row=1)
+
+    def chose_yes():
+      print("Destoying Pop Up")
+      overwrite_root.destroy()
+      return True
+    
+    def chose_no():
+      print("Destoying Pop Up")
+      overwrite_root.destroy()
+      return False
+
+    overwrite_root.mainloop()
+
+  def new_popup() -> bool:
+    overwrite_root = tk.Toplevel(background="#1a1a1a", height=350, width=350)
+    overwrite_root.title("Overwrite File")
+    overwrite_root.grab_set()
+
+    popup = ctk.CTkFrame(overwrite_root, width=300, height=300)
+
+    text = ctk.CTkLabel(popup, text="Are you sure you want to overwrite the file?")
+    yes = ctk.CTkButton(popup, text="Yes", command=lambda: chose_yes())
+    no = ctk.CTkButton(popup, text="No", command=lambda: chose_no())
+
+    popup.pack(pady=10, padx=10)
+    text.grid(pady=10, padx=10, column=0, row=0)
+    yes.grid(pady=10, padx=10, column=0, row=1)
+    no.grid(pady=10, padx=10, column=1, row=1)
+
+    result = tk.BooleanVar()
+
+    def chose_yes():
+        overwrite_root.destroy()
+        result.set(True)
+
+    def chose_no():
+        overwrite_root.destroy()
+        result.set(False)
+
+    overwrite_root.wait_window()
+    return result.get()
+
+
+  def write(i) -> None:
+    print("Writing to file")
+    pop_ans = new_popup()
+    print("Pop Up Answer: ", pop_ans)
 
 
   file1_read_btn = ctk.CTkButton(inner_frame, text="Read", command=lambda: read(1), width=70, height=50)
   file1_read_btn.grid(pady=10, padx=10, column=4, row=0)
+
+  fil1_write_btn = ctk.CTkButton(inner_frame, text="Write", command=lambda: write(1), width=70, height=50)
+  fil1_write_btn.grid(pady=10, padx=10, column=5, row=0)
 
   # Appends a new frame for a new file entry. Allows up to 10 files
   def new_file_entry():
@@ -156,15 +245,19 @@ def create_ui():
         fil_btn = ctk.CTkButton(new_frame, text=f'File {file_count}', command=file_explorer, width=70, height=50)
         fil_btn.grid(pady=10, padx=10, column=1, row=0)
 
-        sc_entry = ctk.CTkEntry(new_frame, width=70, height=50, validate="key", validatecommand=vcmd, placeholder_text=f'scale factor {file_count}')
+        sc_entry = ctk.CTkEntry(new_frame, width=100, height=50, validate="key",
+                                validatecommand=lambda i=file_count: scale_factor_validator(i), placeholder_text=f'scale factor {file_count}')
         sc_entry.grid(pady=10, padx=10, column=2, row=0)
 
         file_name_lbl = ctk.CTkLabel(new_frame, text=f'File {file_count} Name')
         file_name_lbl.grid(pady=10, column=3, row=0)
         labels.append(file_name_lbl)
-
-        file_read_btn = ctk.CTkButton(new_frame, text="Read", command=read, width=70, height=50)
+        # I've used lambda i=file_count such that it uses what the file_count is at the time of the creation of the button
+        file_read_btn = ctk.CTkButton(new_frame, text="Read", command=lambda i=file_count: read(i), width=70, height=50)
         file_read_btn.grid(pady=10, padx=10, column=4, row=0)
+
+        fil1_write_btn = ctk.CTkButton(new_frame, text="Write", command=lambda i=file_count: write(i), width=70, height=50)
+        fil1_write_btn.grid(pady=10, padx=10, column=5, row=0)
 
         add_file_btn = ctk.CTkButton(frame, text="Add File", command=new_file_entry if file_count < max_files else file_overflow_error, width=70, height=50)
         add_file_btn.grid(pady=10, padx=10, column=0, row=file_count+1)
@@ -177,12 +270,17 @@ def create_ui():
 
   # Error: too many files are added
   def file_overflow_error():
-    error_label = ctk.CTkLabel(frame, text="Only 10 Files permitted", text_color="red")
+    error_label = ctk.CTkLabel(frame, text="Only 10 Files Permitted", text_color="red")
     error_label.grid(pady=10, column=0, row=file_count+2)
 
   # Error: Attempted to add new file entry when one is still empty
   def empty_file_error():
-    error_label = ctk.CTkLabel(frame, text="Empty file entry", text_color="red")
+    error_label = ctk.CTkLabel(frame, text="Empty File Entry", text_color="red")
+    error_label.grid(pady=10, column=0, row=file_count+2)
+
+  # Error: Attempted to read a file that doesn't exist
+  def file_not_found_error():
+    error_label = ctk.CTkLabel(frame, text="No File Selected", text_color="red")
     error_label.grid(pady=10, column=0, row=file_count+2)
 
   def remove_error_messages():
