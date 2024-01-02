@@ -1,0 +1,4 @@
+2024-01-02 13:17:06.249651
+selected file C:/Users/rutab/Desktop/Workspace/Physics-Research/hist_particle-2023-11-29 J2 1p3mm-1701267610627.dat
+Scale_factor not numeric. Set to 1.0
+Scale_factor not numeric. Set to 1.0
