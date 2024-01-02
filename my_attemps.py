@@ -132,6 +132,11 @@ def create_ui():
 
   # This method reads the file and stores the values in the spectrums array
   # Such that the write function below can write the values to a file
+  # This code essentially moves the cursor to the thirs line, reads the 10
+  # space separated number and stores them in the spectrums array. It does this
+  # on each line until it reaches the last line which may have less than 10 numbers
+  # On that line it does the same as it has for the other lines but it multiplies 
+  # the numbers by the scale factor before appending them to the spectrums array
   def read(i) -> None:
     # Check if it's the first time the file is being read
     # TODO: Handle this case
@@ -144,16 +149,17 @@ def create_ui():
       file_not_found_error()
       return
 
+    # Get the file name and path
     filename = logfiles[i].pathname + "/" + logfiles[i].filename
     scale_factor = find_scale_factor(i)
     spectrum = []
 
     inputfile = open(filename, 'r')
-    firstline = inputfile.readline()
+    firstline = inputfile.readline() # Did not need to store results in variable but this moves cursor to next line
     line = inputfile.readline()
     file_channel_count = int(line)
     number_full_lines = file_channel_count // 10 # Integer division. It truncates to always get an integer
-    remainder = file_channel_count % 10
+    remainder = file_channel_count % 10 # Did not need this but Pr. Dejongh used it so I did too
 
     # Loop over each file, updating the spectrum array accordingly
     for i in range(number_full_lines):
@@ -167,7 +173,9 @@ def create_ui():
     spectrums.insert(i, spectrum)
     inputfile.close()
 
-  def new_popup() -> bool:
+  # This method is a pop up that asks the user if they want to overwrite the file
+  # It returns true if the user wants to overwrite the file and false otherwise
+  def overwrite_popup() -> bool:
     overwrite_root = tk.Toplevel(background="#1a1a1a", height=350, width=350)
     overwrite_root.title("Overwrite File")
     overwrite_root.grab_set()
@@ -197,6 +205,8 @@ def create_ui():
     return result.get()
 
 
+  # This method writes the values in the spectrums array to a file
+  # It does so in the form "<index>: <value>\n"
   def write(i) -> None:
     read(i)
     is_new = False
@@ -207,11 +217,11 @@ def create_ui():
     if (os.path.exists(filename) == False):
       is_new = True
     else:
-      pop_ans = new_popup()
+      pop_ans = overwrite_popup()
     
     if (is_new or pop_ans):
       with open(filename, 'w') as f:
-        print(f'Writing to {filename}')
+        print(f'Writing to {short_name}')
         for i in range(len(spectrum)):
           f.write(f'{++i}: {spectrum[i]}\n')
     else:
@@ -221,7 +231,7 @@ def create_ui():
   fil1_write_btn = ctk.CTkButton(inner_frame, text="Convert", command=lambda: write(0), width=70, height=50)
   fil1_write_btn.grid(pady=10, padx=10, column=5, row=0)
 
-  # Appends a new frame for a new file entry. Allows up to 10 files
+  # Appends a new frame for a new file entry. Allows up to max_files (an int variable declared at the top) files
   def new_file_entry():
     nonlocal file_count, vcmd
 
