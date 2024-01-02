@@ -26,11 +26,12 @@ def create_ui():
   ctk.set_default_color_theme("dark-blue")
 
   root = ctk.CTk()
-  root.geometry("1000x750")
+  root.geometry("750x750")
   
   file_count = 1
   logfiles = []
   labels = []
+  spectrums = [[] for _ in range(10)]
 
   max_files = 10
 
@@ -46,10 +47,11 @@ def create_ui():
   #   return str.find(sub) != -1
   
   # Utility function to find the scale factor of a given file entry number
-  def find_scale_factor(i) -> float:
+  def find_scale_factor(j) -> float:
+    i = j + 1
     frame_name = f'!ctkframe{i}' if i != 1 else '!ctkframe'
     frame_in_question = frame.children.get(frame_name)
-    placeholder_text = frame_in_question.children.get("!ctkentry").cget("placeholder_text")
+    # placeholder_text = frame_in_question.children.get("!ctkentry").cget("placeholder_text")
     val = frame_in_question.children.get("!ctkentry").get()
     if val == "" or "scale factor" in val:
       return 1.0
@@ -108,7 +110,7 @@ def create_ui():
   # The scale factor entry. It runs the validation command on each key press with the paramaters
   # specified in the vcmd tuple. P is the value of the entry, C is the reference to the entry
   sc1_entry = ctk.CTkEntry(inner_frame, width=100, height=50, validate="key",
-                         validatecommand=lambda: scale_factor_validator(1), 
+                         validatecommand=lambda: scale_factor_validator(0), 
                          placeholder_text="scale factor 1")
   sc1_entry.grid(pady=10, padx=10, column=2, row=0)
 
@@ -124,12 +126,12 @@ def create_ui():
     # Log message indicating the file is being read
     print("Reading file for the first time")
 
-    if (len(logfiles) < i):
+    if (len(logfiles) < i + 1):
       #TODO handle this case
       file_not_found_error()
       return
 
-    filename = logfiles[i-1].pathname + "/" + logfiles[i-1].filename
+    filename = logfiles[i].pathname + "/" + logfiles[i].filename
     scale_factor = find_scale_factor(i)
     spectrum = []
 
@@ -148,45 +150,9 @@ def create_ui():
     # Append the values on the last line, multplying them with the scale factors
     line = inputfile.readline().strip()
     spectrum.extend(float(x) * scale_factor for x in line.split(" "))
-    
-    # Printing for debugging purposes
-    for i in range(len(spectrum)):
-      print(f'{i+1}: {spectrum[i]}')
-      new_filename = "Loïc's Log"
-      check_file = os.path.isfile(new_filename)
-      if (check_file):
-        overwrite_popup()
       
+    spectrums.insert(i, spectrum)
     inputfile.close()
-
-  def overwrite_popup() -> bool:
-    # Create a pop up window
-    print("Creating pop up window")
-    overwrite_root = ctk.CTk()
-    overwrite_root.geometry("350x350")
-
-    popup = ctk.CTkFrame(overwrite_root, width=300, height=300, fg_color="transparent")
-    popup.pack(pady=10, padx=10)
-
-    text = ctk.CTkLabel(popup, text="Are you sure you want to overwrite the file?")
-    yes = ctk.CTkButton(popup, text="Yes", command=lambda: chose_yes())
-    no = ctk.CTkButton(popup, text="No", command=lambda: chose_no())
-
-    text.grid(pady=10, padx=10, column=0, row=0)
-    yes.grid(pady=10, padx=10, column=0, row=1)
-    no.grid(pady=10, padx=10, column=1, row=1)
-
-    def chose_yes():
-      print("Destoying Pop Up")
-      overwrite_root.destroy()
-      return True
-    
-    def chose_no():
-      print("Destoying Pop Up")
-      overwrite_root.destroy()
-      return False
-
-    overwrite_root.mainloop()
 
   def new_popup() -> bool:
     overwrite_root = tk.Toplevel(background="#1a1a1a", height=350, width=350)
@@ -219,15 +185,27 @@ def create_ui():
 
 
   def write(i) -> None:
-    print("Writing to file")
-    pop_ans = new_popup()
-    print("Pop Up Answer: ", pop_ans)
+    read(i)
+    is_new = False
+    pop_ans = False
+    filename = "C:/Users/rutab/Desktop/Workspace/Physics-Research/Loïc's Log.txt"
+    short_name = "Loïc's Log"
+    spectrum = spectrums[i-1]
+    if (os.path.exists(filename) == False):
+      is_new = True
+    else:
+      pop_ans = new_popup()
+    
+    if (is_new or pop_ans):
+      with open(filename, 'w') as f:
+        print(f'Writing to {filename}')
+        for i in range(len(spectrum)):
+          f.write(f'{++i}: {spectrum[i]}\n')
+    else:
+      print(f'Not writing to {filename}')
 
 
-  file1_read_btn = ctk.CTkButton(inner_frame, text="Read", command=lambda: read(1), width=70, height=50)
-  file1_read_btn.grid(pady=10, padx=10, column=4, row=0)
-
-  fil1_write_btn = ctk.CTkButton(inner_frame, text="Write", command=lambda: write(1), width=70, height=50)
+  fil1_write_btn = ctk.CTkButton(inner_frame, text="Convert", command=lambda: write(0), width=70, height=50)
   fil1_write_btn.grid(pady=10, padx=10, column=5, row=0)
 
   # Appends a new frame for a new file entry. Allows up to 10 files
@@ -246,17 +224,14 @@ def create_ui():
         fil_btn.grid(pady=10, padx=10, column=1, row=0)
 
         sc_entry = ctk.CTkEntry(new_frame, width=100, height=50, validate="key",
-                                validatecommand=lambda i=file_count: scale_factor_validator(i), placeholder_text=f'scale factor {file_count}')
+                                validatecommand=lambda i=file_count: scale_factor_validator(i-1), placeholder_text=f'scale factor {file_count}')
         sc_entry.grid(pady=10, padx=10, column=2, row=0)
 
         file_name_lbl = ctk.CTkLabel(new_frame, text=f'File {file_count} Name')
         file_name_lbl.grid(pady=10, column=3, row=0)
         labels.append(file_name_lbl)
-        # I've used lambda i=file_count such that it uses what the file_count is at the time of the creation of the button
-        file_read_btn = ctk.CTkButton(new_frame, text="Read", command=lambda i=file_count: read(i), width=70, height=50)
-        file_read_btn.grid(pady=10, padx=10, column=4, row=0)
 
-        fil1_write_btn = ctk.CTkButton(new_frame, text="Write", command=lambda i=file_count: write(i), width=70, height=50)
+        fil1_write_btn = ctk.CTkButton(new_frame, text="Convert", command=lambda i=file_count: write(i-1), width=70, height=50)
         fil1_write_btn.grid(pady=10, padx=10, column=5, row=0)
 
         add_file_btn = ctk.CTkButton(frame, text="Add File", command=new_file_entry if file_count < max_files else file_overflow_error, width=70, height=50)
@@ -295,7 +270,7 @@ def create_ui():
   def on_close():
     nonlocal root
     print("exiting")
-    print(find_scale_factor(1))
+    print(find_scale_factor(0))
     root.destroy()
     exit()
   #     print("exiting ", logfilename)
