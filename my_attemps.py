@@ -13,7 +13,7 @@ import array as arr
 # TODO: Make it possible to change a file entry
 # TODO: A comments to method
 
-
+# A log file object for the logfiles array. Makes it easier to get the file attributes
 class LogFile:
   def __init__(self, filename, pathname, first_time, first_open):
     self.filename = filename
@@ -21,6 +21,7 @@ class LogFile:
     self.first_time = first_time
     self.first_open = first_open
 
+# Creates the UI though it slowly developed into also holding the logic
 def create_ui():
   ctk.set_appearance_mode("dark")
   ctk.set_default_color_theme("dark-blue")
@@ -28,12 +29,13 @@ def create_ui():
   root = ctk.CTk()
   root.geometry("750x750")
   
+  max_files = 10
+
   file_count = 1
   logfiles = []
   labels = []
-  spectrums = [[] for _ in range(10)]
+  spectrums = [[] for _ in range(max_files)]
 
-  max_files = 10
 
   # GUI
   frame = ctk.CTkScrollableFrame(root, width=1000, height=1000)
@@ -59,6 +61,8 @@ def create_ui():
       return -1.0
     return float(val)
   
+  # Simplifed version of the above function. It takes the file entry number as a parameter
+  # Hope to use it in the future with cleaner version of code
   def find_scale_factor_new(i) -> int:
     return logfiles[i-1].scale_factor
   
@@ -69,10 +73,12 @@ def create_ui():
     frame_in_question.children.get("!ctkentry").delete(0, "end")
     frame_in_question.children.get("!ctkentry").insert(0, val)
 
+  # Simplifed version of the above function. It takes the file entry number as a parameter
   def set_scale_factor_new(i, val):
     logfiles[i-1].scale_factor = val
     
-  # utility to insure that user enters a value numeric (decimcal)
+  # Utility to insure that user enters a value numeric (decimcal)
+  # The parameter the index of the file entry
   def scale_factor_validator(ref) -> bool:
       sc = str(find_scale_factor(ref))
       try:
@@ -83,6 +89,7 @@ def create_ui():
       except ValueError:
           return False
   
+  # Opens a file explorer and adds the selected file to the logfiles array
   def file_explorer() -> None:
     path = filedialog.askopenfilename(initialdir = "/Users/rutab/Desktop/Workspace/Physics-Research/", title = "Select file",filetypes = (("dat files","*.dat"),("all files","*.*")))
     if (path != ""):
@@ -91,13 +98,17 @@ def create_ui():
       logfiles.append(log_file)
       labels[len(logfiles)-1].configure(text=filename, text_color="#0066bf")
 
+
+  # The frame to hold the first file entry
   inner_frame = ctk.CTkFrame(frame, width=500, height=70, fg_color="transparent")
   inner_frame.grid(pady=10, padx=10, column=0, row=1)
   inner_frame.grid_propagate(True)
 
+  # The text entry for the path to the file/folder
   path_entry = ctk.CTkEntry(frame, width=500, placeholder_text="Path to file/folder")
   path_entry.grid(pady=30, padx=10, column=0, row=0)
 
+  # The button to open the file explorer to add a file
   fil1_btn = ctk.CTkButton(inner_frame, text=f'File {file_count}', command=lambda: file_explorer(), width=70, height=50)
   fil1_btn.grid(pady=10, padx=10, column=1, row=0)
 
@@ -114,11 +125,13 @@ def create_ui():
                          placeholder_text="scale factor 1")
   sc1_entry.grid(pady=10, padx=10, column=2, row=0)
 
+  # The label to hold the name of the file
   file1_name_lbl = ctk.CTkLabel(inner_frame, text=f'File {file_count} Name')
   file1_name_lbl.grid(pady=10, column=3, row=0)
   labels.append(file1_name_lbl)
 
-  # Reads file (Only handles unsiged integers)
+  # This method reads the file and stores the values in the spectrums array
+  # Such that the write function below can write the values to a file
   def read(i) -> None:
     # Check if it's the first time the file is being read
     # TODO: Handle this case
