@@ -1,9 +1,12 @@
 # Author Loïc Rutabana, developing code by Dr. Dejongh
 
 from tkinter import filedialog
+from PIL import Image, ImageTk
 import tkinter as tk
 import customtkinter as ctk
+from customtkinter import CTkImage
 import os
+import random
 import array as arr
 
 # TODO: Add a button to remove a file entry
@@ -11,23 +14,33 @@ import array as arr
 # TODO: Remember the last file path used
 # TODO: Add a button to add a folder
 # TODO: Make it possible to change a file entry
-# TODO: A comments to method
+# TODO: Add labels letting the user knowing when convertion is done
 
-# A log file object for the logfiles array. Makes it easier to get the file attributes
+
 class LogFile:
-  def __init__(self, filename, pathname, first_time, first_open):
+  """
+  A log file object for the logfiles array. Makes it easier to get the file attributes
+  """
+  def __init__(self, filename, pathname, first_time, first_open, scale_factor=1.0):
     self.filename = filename
     self.pathname = pathname
     self.first_time = first_time
     self.first_open = first_open
+    self.scale_factor = scale_factor
 
-# Creates the UI though it slowly developed into also holding the logic
+
 def create_ui():
+  """
+  Creates the UI though it slowly developed into also holding the logic
+
+  ### Returns:
+    `None`
+  """
   ctk.set_appearance_mode("dark")
   ctk.set_default_color_theme("dark-blue")
 
   root = ctk.CTk()
-  root.geometry("750x750")
+  root.geometry("800x750")
   
   max_files = 10
 
@@ -37,23 +50,27 @@ def create_ui():
   spectrums = [[] for _ in range(max_files)]
 
 
-  # GUI
+  # First frame to hold the file entries
   frame = ctk.CTkScrollableFrame(root, width=1000, height=1000)
   frame.pack(pady=70, padx=70)
   frame.pack_propagate(True)
 
-  # LOGIC
-
-   # Returns true if the string contains the substring
-  # def contains(str, sub):
-  #   return str.find(sub) != -1
   
-  # Utility function to find the scale factor of a given file entry number
-  def find_scale_factor(j) -> float:
+  def find_scale_factor_rough(j: int) -> float:
+    """
+    Utility function to find the scale factor of a given file entry number before a logfile
+    object is created. It scans the entry widgets to find the user inputted scale factor
+
+    Parameters:
+      j (`int`) : The index of the file entry. This is used to find the file in the logfiles array
+
+    Returns:
+      `float` : The scale factor of the file entry
+    """
+
     i = j + 1
     frame_name = f'!ctkframe{i}' if i != 1 else '!ctkframe'
     frame_in_question = frame.children.get(frame_name)
-    # placeholder_text = frame_in_question.children.get("!ctkentry").cget("placeholder_text")
     val = frame_in_question.children.get("!ctkentry").get()
     if val == "" or "scale factor" in val:
       return 1.0
@@ -61,25 +78,36 @@ def create_ui():
       return -1.0
     return float(val)
   
-  # Simplifed version of the above function. It takes the file entry number as a parameter
-  # Hope to use it in the future with cleaner version of code
-  def find_scale_factor_new(i) -> int:
-    return logfiles[i-1].scale_factor
   
-  #  Utility function to set a scale factor of a given file entry number
-  def set_scale_factor(i, val):
-    frame_name = f'!ctkframe{i}' if i != 1 else '!ctkframe'
-    frame_in_question = frame.children.get(frame_name)
-    frame_in_question.children.get("!ctkentry").delete(0, "end")
-    frame_in_question.children.get("!ctkentry").insert(0, val)
+  
+  def find_scale_factor(i: int) -> int:
+    """
+    Simplifed version of the above function. If the logfile object hasn't been created than
+    it will use `find_scale_factor_rough` to find the scale factor.
 
-  # Simplifed version of the above function. It takes the file entry number as a parameter
-  def set_scale_factor_new(i, val):
-    logfiles[i-1].scale_factor = val
+    Parameters:
+      i (`int`) : The index of the file entry. This is used to find the file in the logfiles array
+
+    Returns:
+      `float` : The scale factor of the file entry
+    """
+
+    if (len(logfiles) < i + 1):
+      return find_scale_factor_rough(i)
+    return logfiles[i-1].scale_factor
     
-  # Utility to insure that user enters a value numeric (decimcal)
-  # The parameter the index of the file entry
-  def scale_factor_validator(ref) -> bool:
+  def scale_factor_validator(ref: int) -> bool:
+      """
+      Utility to insure that user enters a value numeric (decimcal)
+      The parameter the index of the file entry. This is used to find the file in the logfiles array
+
+      Parameters:
+        ref (`int`) : The index of the file entry. This is used to find the file in the logfiles array
+
+      Returns:
+        `bool` : True if the value is numeric and false otherwise
+      """
+
       sc = str(find_scale_factor(ref))
       try:
         if (sc=="" or "scale factor" in sc or sc=='-'):
@@ -89,12 +117,24 @@ def create_ui():
       except ValueError:
           return False
   
-  # Opens a file explorer and adds the selected file to the logfiles array
-  def file_explorer() -> None:
-    path = filedialog.askopenfilename(initialdir = "/Users/rutab/Desktop/Workspace/Physics-Research/", title = "Select file",filetypes = (("dat files","*.dat"),("all files","*.*")))
+  def file_explorer(i: int) -> None:
+    """
+    Opens a file explorer and adds the selected file to the logfiles array
+    and updates the UI accordingly. It also creates a logfile object for the file
+    and adds it to the logfiles array. On top of that it also creates a label
+    to hold the name of the file and adds it to the labels array
+
+    Parameters:
+      i (`int`) : The index of the file entry. This is used to find the file in the logfiles array
+
+    Returns:
+      `None`
+    """
+
+    path = filedialog.askopenfilename(initialdir = os.getcwd(), title = "Select file",filetypes = (("dat files","*.dat"),("all files","*.*")))
     if (path != ""):
       filename = os.path.basename(path)
-      log_file = LogFile(filename, os.path.dirname(path), True, True)
+      log_file = LogFile(filename, os.path.dirname(path), True, True, find_scale_factor(i))
       logfiles.append(log_file)
       labels[len(logfiles)-1].configure(text=filename, text_color="#0066bf")
 
@@ -109,7 +149,7 @@ def create_ui():
   path_entry.grid(pady=30, padx=10, column=0, row=0)
 
   # The button to open the file explorer to add a file
-  fil1_btn = ctk.CTkButton(inner_frame, text=f'File {file_count}', command=lambda: file_explorer(), width=70, height=50)
+  fil1_btn = ctk.CTkButton(inner_frame, text=f'File {file_count}', command=lambda: file_explorer(0), width=70, height=50)
   fil1_btn.grid(pady=10, padx=10, column=1, row=0)
 
   # Reference to the scale factor entry
@@ -130,20 +170,23 @@ def create_ui():
   file1_name_lbl.grid(pady=10, column=3, row=0)
   labels.append(file1_name_lbl)
 
-  # This method reads the file and stores the values in the spectrums array
-  # Such that the write function below can write the values to a file
-  # This code essentially moves the cursor to the thirs line, reads the 10
-  # space separated number and stores them in the spectrums array. It does this
-  # on each line until it reaches the last line which may have less than 10 numbers
-  # On that line it does the same as it has for the other lines but it multiplies 
-  # the numbers by the scale factor before appending them to the spectrums array
+  
   def read(i) -> None:
-    # Check if it's the first time the file is being read
-    # TODO: Handle this case
+    """
+    This method reads the file and stores the values in the spectrums array
+    Such that the write function below can write the values to a file
+    This code essentially moves the cursor to the thirs line, reads the 10
+    space separated number and stores them in the spectrums array. It does this
+    on each line until it reaches the last line which may have less than 10 numbers
+    On that line it does the same as it has for the other lines but it multiplies 
+    the numbers by the scale factor before appending them to the spectrums array
 
-    # Log message indicating the file is being read
-    print("Reading file for the first time")
+    Parameters:
+      i (`int`) : The index of the file entry. This is used to find the file in the logfiles array
 
+    Returns:
+      `None`
+    """
     if (len(logfiles) < i + 1):
       #TODO handle this case
       file_not_found_error()
@@ -173,9 +216,16 @@ def create_ui():
     spectrums.insert(i, spectrum)
     inputfile.close()
 
-  # This method is a pop up that asks the user if they want to overwrite the file
-  # It returns true if the user wants to overwrite the file and false otherwise
+  
   def overwrite_popup() -> bool:
+    """  
+    This method is a pop up that asks the user if they want to overwrite the file
+    It returns true if the user wants to overwrite the file and false otherwise
+
+    Returns:
+      `bool` : True if the user wants to overwrite the file and false otherwise
+    """
+
     overwrite_root = tk.Toplevel(background="#1a1a1a", height=350, width=350)
     overwrite_root.title("Overwrite File")
     overwrite_root.grab_set()
@@ -204,15 +254,82 @@ def create_ui():
     overwrite_root.wait_window()
     return result.get()
 
+  def unique_identifier_popup() -> str:
+    popup_root = tk.Toplevel(background="#1a1a1a")
+    popup_root.title("Unique Identifier")
+    popup_root.grab_set()
 
-  # This method writes the values in the spectrums array to a file
-  # It does so in the form "<index>: <value>\n"
+    outter_frame = ctk.CTkFrame(popup_root, width=300, height=300)
+    outter_frame.pack_propagate(False)
+
+    popup = ctk.CTkFrame(outter_frame, width=300, height=300)
+    popup.pack_propagate(False)
+
+    text = ctk.CTkLabel(popup, text="Enter a unique identifier", font=("Helvetica", 16))
+    entry = ctk.CTkEntry(popup, width=150, height=50, placeholder_text="Unique Identifier")
+    img = Image.open("assets/images/exchange.png")
+    icon = CTkImage(light_image=img, size=(40, 40))
+    randomizer = ctk.CTkButton(popup, image=icon, text="", command=lambda: randomize(), width=60)
+    ok = ctk.CTkButton(popup, text="OK", command=lambda: submit(), width=200)
+    img.close()
+
+    outter_frame.pack(pady=10, padx=10)
+    popup.grid(pady=10, padx=10, column=0, row=0)
+    text.grid(pady=10, padx=10, column=0, row=0, columnspan=2)
+    entry.grid(pady=10, padx=10, column=0, row=1)
+    randomizer.grid(pady=10, padx=10, column=1, row=1)
+    ok.grid(pady=10, padx=10, column=0, row=2, columnspan=2)
+
+    def randomize():
+      width = outter_frame.winfo_width()
+      height = outter_frame.winfo_height()
+      indentifier = ''.join(random.choices('abcdefghijklmnopqrstuvwxyz0123456789', k=6))
+      entry.delete(0, tk.END)
+      entry.insert(0, indentifier)
+
+    def submit():
+      remove_error_message()
+      result = tk.StringVar()
+      if (len(entry.get()) < 4):
+        invalid_identifier()
+      else:
+        return result.get()
+    
+    def invalid_identifier():
+      error_label = ctk.CTkLabel(popup, text="Identifier must be atleast 4 digits long", text_color="red")
+      error_label.grid(pady=10, column=0, row=3, columnspan=2)
+
+    def remove_error_message():
+      for widget in popup.winfo_children():
+        if isinstance(widget, ctk.CTkLabel) and widget.cget("text_color") == "red":
+          widget.destroy()
+
+    popup_root.wait_window()
+  
   def write(i) -> None:
+    """
+    This method writes the values in the spectrums array to a file
+    It does so in the form \"`<index>`: `<value>`\".
+  
+    Parameters:
+      i (`int`) : The index of the file entry. This is used to find the file in the logfiles array
+  
+    Returns:
+      `None`
+    """
     read(i)
     is_new = False
     pop_ans = False
-    filename = "C:/Users/rutab/Desktop/Workspace/Physics-Research/Loïc's Log.txt"
-    short_name = "Loïc's Log"
+    
+    # The unique identifier inputed by the user
+    identifier = unique_identifier_popup()
+    if (len(identifier) < 4):
+      return
+    input_filename = logfiles[i].filename
+    start_index = input_filename.find("hist")
+    end_index = input_filename.find("_",start_index)
+    outputfilename = input_filename[:start_index] + "o_" + identifier + input_filename[end_index:]
+    filename = os.getcwd() + "/" + outputfilename
     spectrum = spectrums[i-1]
     if (os.path.exists(filename) == False):
       is_new = True
@@ -221,7 +338,7 @@ def create_ui():
     
     if (is_new or pop_ans):
       with open(filename, 'w') as f:
-        print(f'Writing to {short_name}')
+        print(f'Writing to {outputfilename}')
         for i in range(len(spectrum)):
           f.write(f'{++i}: {spectrum[i]}\n')
     else:
@@ -231,8 +348,14 @@ def create_ui():
   fil1_write_btn = ctk.CTkButton(inner_frame, text="Convert", command=lambda: write(0), width=70, height=50)
   fil1_write_btn.grid(pady=10, padx=10, column=5, row=0)
 
-  # Appends a new frame for a new file entry. Allows up to max_files (an int variable declared at the top) files
-  def new_file_entry():
+  
+  def new_file_entry() -> None:
+    """
+    Appends a new frame for a new file entry. Allows up to `max_files` (an int variable declared at the top) files
+
+    Returns:
+      `None`
+    """
     nonlocal file_count, vcmd
 
     remove_error_messages()
@@ -243,7 +366,7 @@ def create_ui():
         new_frame.grid(pady=10, padx=10, column=0, row=file_count)
         # inner_frame.grid_propagate(False)
 
-        fil_btn = ctk.CTkButton(new_frame, text=f'File {file_count}', command=file_explorer, width=70, height=50)
+        fil_btn = ctk.CTkButton(new_frame, text=f'File {file_count}', command=lambda i=file_count: file_explorer(i-1), width=70, height=50)
         fil_btn.grid(pady=10, padx=10, column=1, row=0)
 
         sc_entry = ctk.CTkEntry(new_frame, width=100, height=50, validate="key",
@@ -266,22 +389,44 @@ def create_ui():
 
   # ERROR MESSAGES
 
-  # Error: too many files are added
-  def file_overflow_error():
+  def file_overflow_error() -> None:
+    """
+    Error: too many files are added. This is called when the user tries to add more than `max_files` files
+
+    Returns:
+      `None`
+    """
+
     error_label = ctk.CTkLabel(frame, text="Only 10 Files Permitted", text_color="red")
     error_label.grid(pady=10, column=0, row=file_count+2)
 
-  # Error: Attempted to add new file entry when one is still empty
-  def empty_file_error():
-    error_label = ctk.CTkLabel(frame, text="Empty File Entry", text_color="red")
-    error_label.grid(pady=10, column=0, row=file_count+2)
+  def empty_file_error() -> None:
+   """
+   Error: Attempted to add new file entry when one is still empty.
+   This is called when the user tries to add a new file entry when one is still empty
 
-  # Error: Attempted to read a file that doesn't exist
-  def file_not_found_error():
-    error_label = ctk.CTkLabel(frame, text="No File Selected", text_color="red")
-    error_label.grid(pady=10, column=0, row=file_count+2)
+    Returns:
+      `None`
+   """
+   error_label = ctk.CTkLabel(frame, text="Empty File Entry", text_color="red")
+   error_label.grid(pady=10, column=0, row=file_count+2)
+
+  def file_not_found_error() -> None:
+   """
+   Error: Attempted to read a file that doesn't exist
+   """
+   
+   error_label = ctk.CTkLabel(frame, text="No File Selected", text_color="red")
+   error_label.grid(pady=10, column=0, row=file_count+2)
 
   def remove_error_messages():
+    """
+    Removes all error messages from the UI. This is called when the user adds a new file entry
+
+    Returns:
+      `None`
+    """
+
     for widget in frame.winfo_children():
       if isinstance(widget, ctk.CTkLabel) and widget.cget("text_color") == "red":
         widget.destroy()
@@ -289,11 +434,13 @@ def create_ui():
   add_file_btn = ctk.CTkButton(frame, text="Add File", command=new_file_entry, width=70, height=50)
   add_file_btn.grid(pady=10, padx=10, column=0, row=2)
 
-  # Custom close function
-  def on_close():
+  def on_close() -> None:
+    """
+    This method is called when the user closes the window. It closes the window and renames the log file
+    to include the number of seconds since midnight
+    """
+
     nonlocal root
-    print("exiting")
-    print(find_scale_factor(0))
     root.destroy()
     exit()
   #     print("exiting ", logfilename)
