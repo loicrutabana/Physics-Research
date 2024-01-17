@@ -3,3 +3,11 @@
 2. What is the output identifier?
 3. The code from Pr. Dejongh seems to anticipate decimal numbers. Should I do that?
 4. Are the log files necessary?
+5. The previous code made sure to only multiply the last last line by the scale factor. Are you sure that wasn't right?
+6. What order do you want multiple files to be printed in?
+7. Does the number reset matter?
+
+Next Step
+  -> Figure out checked status issue on close
+  -> Figure out why it's not running on multiple files
+  -> Add clear button
