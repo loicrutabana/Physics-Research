@@ -18,11 +18,14 @@ from typing import Callable
 # TODO: Add labels letting the user knowing when convertion is done
 
 
+teal = "#008080"
+
+
 class LogFile:
   """
   A log file object for the logfiles array. Makes it easier to get the file attributes
   """
-  def __init__(self, filename, pathname, first_time, first_open, scale_factor=1.0, checked: str="off"):
+  def __init__(self, filename, pathname, first_time, first_open, scale_factor, checked: str="off"):
     self.filename = filename
     self.pathname = pathname
     self.first_time = first_time
@@ -98,7 +101,7 @@ def create_ui():
       elif val[0] == '.':
         return float('0' + val[0:len(val)])
       return val
-    return logfiles[i-1].scale_factor
+    return float(logfiles[i-1].scale_factor)
   
   def find_checked_status_rough(i: int) -> str:
     """
@@ -138,12 +141,20 @@ def create_ui():
       if (val=="" or "scale factor" in val or val=="-" or val=="."):
           return True
       try:
-        float(val)
+        num = float(val)
         if (len(logfiles) > int(i)):
-          logfiles[i].scale_factor = find_scale_factor(i)
+          logfiles[int(i)].scale_factor = num
         return True
       except ValueError:
         return False
+      
+  def load_last_folder_path():
+    try:
+        with open("config.json", "r") as config_file:
+            data = json.load(config_file)
+            return data.get("last_folder_path", "")
+    except FileNotFoundError:
+        return ""
   
   def file_explorer(i: int) -> None:
     """
@@ -159,7 +170,7 @@ def create_ui():
       `None`
     """
     
-    path = filedialog.askopenfilename(initialdir = os.getcwd(), title = "Select file",filetypes = (("dat files","*.dat"),("all files","*.*")))
+    path = filedialog.askopenfilename(initialdir = load_last_folder_path, title = "Select file", filetypes = (("dat files","*.dat"),("all files","*.*")))
     if (path != ""):
       filename = os.path.basename(path)
       log_file = LogFile(filename, os.path.dirname(path), True, True, find_scale_factor(i), find_checked_status(i))
@@ -172,34 +183,13 @@ def create_ui():
   inner_frame.grid(pady=10, padx=10, column=0, row=1)
   inner_frame.grid_propagate(True)
 
-  # The text entry for the path to the file/folder
-  path_entry = ctk.CTkEntry(frame, width=500, placeholder_text="Path to file/folder")
-  path_entry.grid(pady=30, padx=10, column=0, row=0)
-
-
-
-  # # The button to open the file explorer to add a file
-  # fil1_btn = ctk.CTkButton(inner_frame, text="Upload", command=lambda: file_explorer(0), width=70, height=50)
-  # fil1_btn.grid(pady=10, padx=10, column=1, row=0)
-
   # Reference to the scale factor entry
   ref = None
 
   # Create a Tcl wrapper for the validation command. It makes sure input is numeric
   vcmd = (root.register(scale_factor_validator), '%P', ref)
-  # # The scale factor entry. It runs the validation command on each key press with the paramaters
-  # # specified in the vcmd tuple. P is the value of the entry, C is the reference to the entry
-  # sc1_entry = ctk.CTkEntry(inner_frame, width=100, height=50, validate="key",
-  #                        validatecommand=lambda: scale_factor_validator(0), 
-  #                        placeholder_text="scale factor 1")
-  # sc1_entry.grid(pady=10, padx=10, column=2, row=0)
-
-  # # The label to hold the name of the file
-  # file1_name_lbl = ctk.CTkLabel(inner_frame, text=f'File {file_count} Name')
-  # file1_name_lbl.grid(pady=10, column=3, row=0)
-  # labels.append(file1_name_lbl)
   
-  def read(i: int) -> None:
+  def read(i: int) -> int:
     """
     This method reads the file and stores the values in the spectrums array
     Such that the write function below can write the values to a file
@@ -218,7 +208,7 @@ def create_ui():
     if (len(logfiles) < i + 1):
       #TODO handle this case
       file_not_found_error()
-      return
+      return -1
 
     # Get the file name and path
     filename = logfiles[i].pathname + "/" + logfiles[i].filename
@@ -235,14 +225,15 @@ def create_ui():
     # Loop over each line, updating the spectrum array accordingly multiplying by the scale factor
     for k in range(number_full_lines):
       line = inputfile.readline().strip()
-      spectrum.extend(float(x) * scale_factor for x in line.split(" "))
+      spectrum.extend(int(x) * scale_factor for x in line.split(" "))
     
     # Append the values on the last line, multplying them with the scale factors
     line = inputfile.readline().strip()
-    spectrum.extend(float(x) * scale_factor for x in line.split(" "))
+    spectrum.extend(int(x) * scale_factor for x in line.split(" "))
       
     spectrums.insert(i, spectrum)
     inputfile.close()
+    return 0
 
   
   def overwrite_popup() -> bool:
@@ -282,7 +273,7 @@ def create_ui():
     overwrite_root.wait_window()
     return result.get()
 
-  def unique_identifier_popup() -> str:
+  def unique_identifier_popup() -> str or int:
     result = ''
 
     popup_root = tk.Toplevel(background="#1a1a1a")
@@ -329,7 +320,7 @@ def create_ui():
     def cancel():
       nonlocal result
       popup_root.destroy()
-      result = 'CANCEL'
+      result = -1
     
     def invalid_identifier():
       error_label = ctk.CTkLabel(popup, text="Identifier must be atleast 4 digits long", text_color="red")
@@ -355,15 +346,27 @@ def create_ui():
     Returns:
       `None`
     """
+    nonlocal logfiles, spectrums
+    
+    checked_spectrums= []
     for j in range(len(logfiles)):
-      if (logfiles[j].checked == "on"): read(j)
-    read(i)
+      if (logfiles[j].checked == "on"): 
+        if (read(j) == -1):
+          return
+        checked_spectrums.append(spectrums[j])
+    if (read(i) == -1):
+      return
+    checked_spectrums.append(spectrums[i])
+    num_lines = 0
+    with open(logfiles[i].pathname + "/" + logfiles[i].filename, 'r') as f:
+      while f.readline():
+        num_lines += 1
     is_new = False
     pop_ans = False
     
     # The unique identifier inputed by the user
     identifier = unique_identifier_popup()
-    if (identifier == 'CANCEL'):
+    if (identifier == -1):
       return
     input_filename = logfiles[i].filename
     start_index = input_filename.find("hist")
@@ -375,17 +378,26 @@ def create_ui():
     else:
       pop_ans = overwrite_popup()
     
-    if (is_new or pop_ans):
+    if (is_new or pop_ans): # -> Check this
       with open(filename, 'w') as f:
         print(f'Writing to {outputfilename}')
-        for j in range(len(logfiles)):
-          if (logfiles[j].checked == "on"):
-            spectrum = spectrums[j]
-            for k in range(len(spectrum)):
-              f.write(f'{++k}: {spectrum[k]}\n')
-        spectrum = spectrums[i]
-        for i in range(len(spectrum)):
-          f.write(f'{++i}: {spectrum[i]}\n')
+        for j in range(num_lines):
+          val = 0
+          for k in range(len(checked_spectrums)):
+            sub_list  = checked_spectrums[k]
+            sub_val = sub_list[j]
+            val += int(sub_val)
+            f.write(f'{++j} {val}\n')
+          # val = sum(s[j] for s in checked_spectrums)
+        # for j in range(len(logfiles)):
+        #   if (logfiles[j].checked == "on"):
+        #     spectrum = spectrums[j]
+        #     for k in range(len(spectrum)):
+        #       f.write(f'{++k} {spectrum[k]}\n')
+        # spectrum = spectrums[i]
+        # for i in range(len(spectrum)):
+        #   f.write(f'{++i} {spectrum[i]}\n')
+        convertion_complete()
     else:
       print(f'Not writing to {filename}')
 
@@ -434,7 +446,8 @@ def create_ui():
           upload_btn.configure()
           # Set checked to true in log file object if created
           if (len(logfiles) == i):
-            logfiles[i-1].checked = "on" if check_var.get() == 'on' else "off"
+            state = check_var.get()
+            logfiles[i-1].checked = "on" if state == 'on' else "off"
 
         checkbox = ctk.CTkCheckBox(new_frame, text="Add",
                                    command=lambda write_btn=file_write_btn, upload_btn=fil_btn, str_var=check_var.get(), i=file_count: on_check(i, str_var, write_btn, upload_btn),
@@ -502,6 +515,37 @@ def create_ui():
 
   add_file_btn = ctk.CTkButton(frame, text="Add File", command=new_file_entry, width=70, height=50)
   add_file_btn.grid(pady=10, padx=10, column=0, row=2)
+
+  # Non Error Messages
+
+  def convertion_complete() -> None:
+    """
+    Tells the user that the convertion is complete.
+    Message goes away after 3 seconds
+
+    Returns:
+      `None`
+    """
+
+    msg_label = ctk.CTkLabel(frame, text="Convertion Complete", text_color=teal)
+    msg_label.grid(pady=10, column=0, row=file_count+2)
+    root.after(3000, lambda: msg_label.destroy())
+
+  def on_reset() -> None:
+    # Make it destroy root, end the create_ui function, and call create_ui again
+    nonlocal root, file_count, logfiles, labels, spectrums
+    root.destroy()
+    file_count = 0
+    logfiles = []
+    labels = []
+    spectrums = [[] for _ in range(max_files)]
+    create_ui()
+
+  img = Image.open("assets/images/bomb.png")
+  icon = CTkImage(light_image=img, size=(30, 30))
+  reset_btn = ctk.CTkButton(frame, image=icon, text="", command=on_reset, width=30, height=30)
+  reset_btn.grid(pady=30, padx=10, column=0, row=0, sticky='w') 
+
 
   def on_close() -> None:
     """
